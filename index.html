@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Document Q&A</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #fafafa; color: #222; }
+  h1 { font-size: 1.4rem; }
+  .box { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+  input[type="file"], input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+  button { background: #2563eb; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; }
+  button:hover { background: #1d4ed8; }
+  #answer, #uploadStatus { white-space: pre-wrap; margin-top: 12px; line-height: 1.5; }
+  label { font-size: 0.85rem; color: #555; }
+</style>
+</head>
+<body>
+  <h1>📄 Document Q&A</h1>
+
+  <div class="box">
+    <label>API Key (X-API-Key)</label>
+    <input type="password" id="apiKey" placeholder="your API_SECRET_KEY">
+    <label>Tenant ID (optional — leave blank for "default")</label>
+    <input type="text" id="tenantId" placeholder="e.g. acme-corp">
+  </div>
+
+  <div class="box">
+    <h3>1. Upload a PDF</h3>
+    <input type="file" id="fileInput" accept=".pdf">
+    <button onclick="uploadFile()">Upload &amp; Index</button>
+    <div id="uploadStatus"></div>
+  </div>
+
+  <div class="box">
+    <h3>2. Ask a question about it</h3>
+    <input type="text" id="questionInput" placeholder="e.g. What is the termination clause?">
+    <button onclick="askQuestion()">Ask</button>
+    <div id="answer"></div>
+  </div>
+
+<script>
+function headers(extra) {
+  const h = { 'X-API-Key': document.getElementById('apiKey').value };
+  const tenant = document.getElementById('tenantId').value;
+  if (tenant) h['X-Tenant-ID'] = tenant;
+  return Object.assign(h, extra || {});
+}
+
+async function uploadFile() {
+  const fileInput = document.getElementById('fileInput');
+  const status = document.getElementById('uploadStatus');
+  if (!fileInput.files.length) { status.textContent = "Pick a PDF first."; return; }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  status.textContent = "Uploading and indexing...";
+
+  const res = await fetch('/upload', { method: 'POST', headers: headers(), body: formData });
+  const data = await res.json();
+  status.textContent = data.message || data.error;
+}
+
+async function askQuestion() {
+  const question = document.getElementById('questionInput').value;
+  const answerDiv = document.getElementById('answer');
+  if (!question.trim()) return;
+
+  answerDiv.textContent = "Thinking...";
+
+  const res = await fetch('/ask', {
+    method: 'POST',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ question })
+  });
+  const data = await res.json();
+
+  let text = data.answer || data.error;
+  if (data.sources && data.sources.length) {
+    text += `\n\nSources: ${data.sources.join(", ")}`;
+  }
+  answerDiv.textContent = text;
+}
+</script>
+</body>
+</html>
