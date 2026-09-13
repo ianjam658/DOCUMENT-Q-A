@@ -26,6 +26,13 @@ def get_conn():
     return conn
 
 
+def _get_bootstrap_conn():
+    """A connection that skips register_vector — used only for the very first
+    setup step, since the vector type doesn't exist in a fresh database until
+    CREATE EXTENSION has run. Every other caller should use get_conn()."""
+    return get_pool().getconn()
+
+
 def put_conn(conn):
     get_pool().putconn(conn)
 
@@ -33,7 +40,7 @@ def put_conn(conn):
 def init_db():
     """Creates the pgvector extension and schema if they don't exist yet.
     Safe to call on every startup."""
-    conn = get_conn()
+    conn = _get_bootstrap_conn()
     try:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
