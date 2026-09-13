@@ -78,6 +78,6 @@ These are smoke tests (auth enforcement, health check, input validation) that do
 - Put this behind HTTPS (Render does this automatically; if you self-host, use a reverse proxy with TLS).
 
 ## Scaling notes
+- **Memory**: Render's Free and Starter plans both give only 512MB RAM (Starter's only difference is no sleep-on-inactivity — it does *not* add RAM). This app's ML stack (PyTorch + sentence-transformers) needs roughly 300-400MB per process just to load the embedding model, so **run gunicorn with `--workers 1`** on either of those plans — two workers means two full copies of the model in memory and will OOM. If you need more concurrency, the next tier with more RAM is Standard (2GB) at $25/month, not Starter.
 - Multiple instances → set `REDIS_URL` so rate limiting is shared across instances instead of per-instance.
-- Gunicorn worker count: 2 is a safe starting point for Render's smallest plan; increase with more CPU/RAM.
-- The embedding model loads into memory once per worker process — more workers means more RAM used, so scale workers and instance size together.
+- The embedding model loads into memory once per worker process — more workers means more RAM used, so scale workers and instance size together (e.g. only go to `--workers 2` once you're on at least a 2GB-RAM plan).
