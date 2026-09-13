@@ -7,6 +7,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --workers 2 --timeout 120 --access-logfile -
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
