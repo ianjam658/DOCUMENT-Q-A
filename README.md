@@ -27,11 +27,15 @@ Upload PDFs, ask questions grounded in their actual content (RAG). This version 
 | `RATE_LIMIT_DEFAULT` / `_UPLOAD` / `_ASK` | No | Sensible defaults included |
 
 ## Deploy to Render (recommended path)
+**Use "New → Blueprint", not "New → Web Service".** Render only reads `render.yaml` — including the Python version, the correct gunicorn start command, and automatic Postgres provisioning — when deployed as a Blueprint. A manually-created Web Service ignores `render.yaml` entirely, which will silently reintroduce the exact Python-version and port-binding bugs this repo works around.
+
 1. Push this repo to GitHub.
-2. On Render: New → Blueprint → connect the repo. `render.yaml` provisions both the web service and a managed Postgres database automatically, and its `startCommand` runs the app through `gunicorn` (not `python app.py` directly).
+2. On Render: New → **Blueprint** → connect the repo.
 3. In the dashboard, set `GROQ_API_KEY` and `API_SECRET_KEY` (marked `sync: false`, so Render will prompt for them).
 4. Deploy. Render runs the health check against `/health` before routing traffic to the new instance.
 5. **Enable pgvector**: Render Postgres supports the extension, but you can confirm by connecting with `psql` and running `CREATE EXTENSION IF NOT EXISTS vector;` — the app also does this automatically on startup.
+
+If you already created this as a manual Web Service, delete it and recreate via Blueprint rather than patching settings by hand — you'll otherwise be fixing the same class of bug (Python version, start command, missing DATABASE_URL wiring) repeatedly as the app grows.
 
 ### Two build issues this repo already avoids
 - **CPU-only PyTorch**: `sentence-transformers` pulls in PyTorch, and by default pip grabs the full GPU/CUDA build — over 2.5GB of NVIDIA libraries you don't need on a CPU-only Render instance, which alone can blow a small build's storage quota. `requirements.txt` pins `torch==2.9.0+cpu` via PyTorch's own CPU wheel index (this exact version was confirmed available in Render's mirror — if it stops being available in the future, check what versions the build log offers and update the pin), cutting the download down to roughly 200-300MB.
