@@ -28,10 +28,17 @@ Upload PDFs, ask questions grounded in their actual content (RAG). This version 
 
 ## Deploy to Render (recommended path)
 1. Push this repo to GitHub.
-2. On Render: New → Blueprint → connect the repo. `render.yaml` provisions both the web service and a managed Postgres database automatically.
+2. On Render: New → Blueprint → connect the repo. `render.yaml` provisions both the web service and a managed Postgres database automatically, and its `startCommand` runs the app through `gunicorn` (not `python app.py` directly).
 3. In the dashboard, set `GROQ_API_KEY` and `API_SECRET_KEY` (marked `sync: false`, so Render will prompt for them).
 4. Deploy. Render runs the health check against `/health` before routing traffic to the new instance.
 5. **Enable pgvector**: Render Postgres supports the extension, but you can confirm by connecting with `psql` and running `CREATE EXTENSION IF NOT EXISTS vector;` — the app also does this automatically on startup.
+
+### Two build issues this repo already avoids
+- **CPU-only PyTorch**: `sentence-transformers` pulls in PyTorch, and by default pip grabs the full GPU/CUDA build — over 2.5GB of NVIDIA libraries you don't need on a CPU-only Render instance, which alone can blow a small build's storage quota. `requirements.txt` pins `torch==2.3.1+cpu` via PyTorch's own CPU wheel index, cutting that down to roughly 200MB.
+- **Python version**: `runtime.txt` pins Python to `3.11.9`. Without it, Render may build against a very new Python release before packages like `psycopg2-binary` have published compatible prebuilt wheels for it, causing an `ImportError: undefined symbol` crash at startup that has nothing to do with your code.
+
+If you deployed this manually as a plain "Web Service" instead of via Blueprint, double check the start command is `gunicorn app:app --workers 2 --timeout 120` and not the default `python app.py` — the logs will show "Running 'python app.py'" if it's using the wrong one.
+
 
 Note: `render.yaml` uses the `starter` (paid) plan for both the web service and database. Free tier Postgres on Render expires after 90 days and free web services sleep after inactivity — neither is acceptable for a paid product. Use `starter` for anything real; drop to `free` only while testing.
 
